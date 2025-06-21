@@ -1,6 +1,6 @@
 from src.masks import get_mask_card_number, get_mask_account
 from src.widget import mask_account_card, get_date
-from src.processing import filter_by_state
+from src.processing import filter_by_state, sort_by_date
 
 print(get_mask_card_number("7000792289606361"))  # Вывод: "7000 79 ** 6361"
 print(get_mask_account("73654108430135874305"))   # Вывод: "**4305"
@@ -24,3 +24,21 @@ print(filter_by_state(data))
 # Фильтрация по CANCELED
 print(filter_by_state(data, 'CANCELED'))
 # [{'id': 594226727, ...}, {'id': 615064591, ...}]
+
+# Сортировка по убыванию (новые операции в начале)
+print(sort_by_date(data))
+# [
+#    {'id': 41428829, 'state': 'EXECUTED', 'date': '2019-07-03T18:35:29.512364'},
+#    {'id': 615064591, 'state': 'CANCELED', 'date': '2018-10-14T08:21:33.419441'},
+#    {'id': 594226727, 'state': 'CANCELED', 'date': '2018-09-12T21:27:25.241689'},
+#    {'id': 939719570, 'state': 'EXECUTED', 'date': '2018-06-30T02:08:58.425572'}
+# ]
+
+# Сортировка по возрастанию (старые операции в начале)
+print(sort_by_date(data, reverse=False))
+# [
+#    {'id': 939719570, 'state': 'EXECUTED', 'date': '2018-06-30T02:08:58.425572'},
+#    {'id': 594226727, 'state': 'CANCELED', 'date': '2018-09-12T21:27:25.241689'},
+#    {'id': 615064591, 'state': 'CANCELED', 'date': '2018-10-14T08:21:33.419441'},
+#    {'id': 41428829, 'state': 'EXECUTED', 'date': '2019-07-03T18:35:29.512364'}
+# ]
