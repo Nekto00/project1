@@ -12,6 +12,8 @@ SAMPLE_TRANSACTIONS = [
 ]
 
 # Тесты для filter_by_state
+
+
 class TestFilterByState:
     @pytest.mark.parametrize('state,expected_count', [
         ('EXECUTED', 3),
@@ -32,6 +34,8 @@ class TestFilterByState:
         assert all(item['state'] == 'EXECUTED' for item in result)
 
 # Тесты для sort_by_date
+
+
 class TestSortByDate:
     def test_sort_descending(self):
         """Тестирует сортировку по убыванию даты (новые сначала)."""

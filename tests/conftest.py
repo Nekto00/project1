@@ -24,4 +24,3 @@ def numbers_account():
 @pytest.fixture
 def numbers_account_short():
     return "**1234"
-
