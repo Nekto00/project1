@@ -12,6 +12,7 @@ def filter_by_currency(transactions, currency):
         if transaction_currency == currency:
             yield transaction
 
+
 def transaction_descriptions(transactions):
     """
     Генератор, который возвращает описание каждой транзакции по очереди.
@@ -24,15 +25,15 @@ def transaction_descriptions(transactions):
         yield transaction.get("description", "Описание отсутствует")
 
 
-def card_number_generator(start, end):
+def card_number_generator(start, stop):
     """
     Генератор номеров банковских карт в формате XXXX XXXX XXXX XXXX.
 
     :param start: Начальное значение (от 1 до 9999_9999_9999_9999)
-    :param end: Конечное значение (включительно, >= start)
+    :param stop: Конечное значение (включительно, >= start)
     :yield: Номер карты в виде строки с пробелами
     """
-    for number in range(start, end + 1):
+    for number in range(start, stop + 1):
         # Преобразуем число в 16-значную строку с ведущими нулями
         card_str = f"{number:016d}"
         # Разбиваем на группы по 4 цифры и объединяем через пробел

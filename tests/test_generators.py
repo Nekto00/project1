@@ -1,6 +1,8 @@
+from typing import Any, Dict, List
+
 import pytest
-from typing import List, Dict, Any
-from src.generators import filter_by_currency, transaction_descriptions, card_number_generator
+
+from src.generators import card_number_generator, filter_by_currency, transaction_descriptions
 
 
 @pytest.fixture
@@ -75,7 +77,6 @@ def test_filter_by_currency_parametrized(sample_transactions, currency, expected
     """Параметризованный тест для разных валют."""
     transactions = list(filter_by_currency(sample_transactions, currency))
     assert [t["id"] for t in transactions] == expected_ids
-
 
 
 def test_transaction_descriptions_normal_cases(sample_transactions):
