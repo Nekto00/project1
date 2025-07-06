@@ -25,6 +25,7 @@ pip install -r requirements.txt
 - **masks-тесты**: `tests/test_masks.py  
 - **widget-тесты**: `tests/test_widget.py
 - **processing-тесты**: `tests/test_processing.py
+- **generators-тесты**: `tests/test_generators.py
 
 Запуск:  
 ```
