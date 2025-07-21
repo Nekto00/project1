@@ -1,0 +1,8 @@
+my_function started at 2025-07-10 12:07:08.594612
+my_function ok. Result: 3. Duration: 0:00:00.000274
+my_function started at 2025-07-10 12:09:12.855437
+my_function ok. Result: 3. Duration: 0:00:00.000557
+my_function started at 2025-07-10 12:27:11.935115
+my_function ok. Result: 3. Duration: 0:00:00.000280
+my_function started at 2025-07-10 23:15:37.928478
+my_function ok. Result: 3. Duration: 0:00:00.000237
