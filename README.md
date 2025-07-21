@@ -28,7 +28,6 @@ pip install -r requirements.txt
 - **generators-тесты**: `tests/test_generators.py
 - **decorators-тесты**: `tests/test_decorators.py
 
-
 Запуск:  
 ```
 python -m pytest
