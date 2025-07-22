@@ -22,3 +22,9 @@ my_function started at 2025-07-22 00:00:39.426842
 my_function ok. Result: 3. Duration: 0:00:00.000370
 my_function started at 2025-07-22 00:02:15.766311
 my_function ok. Result: 3. Duration: 0:00:00.000218
+my_function started at 2025-07-22 14:17:03.777946
+my_function ok. Result: 3. Duration: 0:00:00.000980
+my_function started at 2025-07-22 14:19:59.815419
+my_function ok. Result: 3. Duration: 0:00:00.000861
+my_function started at 2025-07-22 14:22:58.345957
+my_function ok. Result: 3. Duration: 0:00:00.000565

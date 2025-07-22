@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-from src.external_api import  convert_to_rub
+
+from src.external_api import convert_to_rub
 
 
 def load_transactions(file_path):
@@ -8,7 +9,7 @@ def load_transactions(file_path):
     Загружает данные о финансовых транзакциях из JSON-файла.
 
     :param file_path: Путь до JSON-файла с транзакциями
-    :return: Список словарей с данными о транзакциях или пустой список, если файл не найден, пуст или содержит не список
+    :return:Список словарей с данными о транзакциях или пустой список, если файл не найден, пуст или содержит не список
     """
     try:
         # Проверяем существование файла

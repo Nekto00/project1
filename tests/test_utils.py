@@ -1,8 +1,10 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 import requests
-from unittest.mock import patch, MagicMock
-from src.utils import  get_transaction_amount
-from src.external_api import get_exchange_rate, convert_to_rub
+
+from src.external_api import get_exchange_rate
+from src.utils import get_transaction_amount
 
 
 @pytest.fixture
