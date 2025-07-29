@@ -9,13 +9,23 @@ from src.external_api import convert_to_rub
 logger = logging.getLogger('transactions')
 logger.setLevel(logging.DEBUG)
 
+# Создаем директорию для логов, если её нет
+log_dir = Path(__file__).parent.parent / 'logs' / 'utils'
+log_dir.mkdir(parents=True, exist_ok=True)
+
 # Создание и настройка file handler
-file_handler = logging.FileHandler('../logs/utils/transactions.log', mode='a')
+log_file = log_dir / 'transactions.log'
+file_handler = logging.FileHandler(log_file, mode='a')
 file_formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
+
+# Добавляем вывод логов в консоль для удобства разработки
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(file_formatter)
+logger.addHandler(console_handler)
 
 
 def load_transactions(file_path: Union[str, Path]) -> List[Dict]:

@@ -4,3 +4,7 @@ my_function started at 2025-07-10 23:14:26.831549
 my_function ok. Result: 3. Duration: 0:00:00.001470
 my_function started at 2025-07-10 23:15:15.659722
 my_function ok. Result: 3. Duration: 0:00:00.001087
+my_function started at 2025-07-29 23:52:02.579863
+my_function ok. Result: 2.0. Duration: 0:00:00.000319
+my_function started at 2025-07-29 23:52:02.580526
+my_function error: ZeroDivisionError: division by zero. Inputs: (1, 0), {}. Duration: 0:00:00.000162
