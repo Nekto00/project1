@@ -67,7 +67,7 @@ def log(filename=None):
     return decorator
 
 
-@log(filename="mylog.txt")
+@log(filename="../logs/masks/mylog.txt")
 def my_function(x, y):
     return x + y
 
