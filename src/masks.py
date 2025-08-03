@@ -1,11 +1,16 @@
 import logging
+import os
+
+# Создаем папку для логов, если её нет
+log_dir = os.path.join(os.path.dirname(__file__), '../logs/masks')
+os.makedirs(log_dir, exist_ok=True)  # exist_ok=True — не вызывает ошибку, если папка уже есть
 
 # Создание и настройка логгера для модуля masks
 logger = logging.getLogger('masks')
 logger.setLevel(logging.DEBUG)  # Уровень не ниже DEBUG
 
 # Создание file handler
-file_handler = logging.FileHandler('../logs/masks/masks.log', mode='a')
+file_handler = logging.FileHandler(os.path.join(log_dir, 'masks.log'))
 
 # Создание formatter с требуемым форматом
 file_formatter = logging.Formatter(
