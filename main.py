@@ -1,7 +1,6 @@
 import sys
 import json
 import csv
-import openpyxl
 from typing import List, Dict, Union
 from src.processing import filter_by_state, sort_by_date
 from src.utils import load_transactions, process_bank_search
@@ -11,38 +10,25 @@ from src.masks import get_mask_account, get_mask_card_number
 
 def filter_rub_transactions(transactions: List[Dict]) -> List[Dict]:
     """
-    Фильтрует список транзакций, оставляя только рублёвые (RUB).
-
-    Args:
-        transactions: Список словарей с транзакциями, где каждый словарь содержит:
-            - 'amount' (число или строка)
-            - 'currency' (строка, опционально - по умолчанию считается RUB)
-
-    Returns:
-        Список транзакций только с рублёвыми операциями
-
-    Пример:
-        transactions = [
-        ...     {'amount': 100, 'currency': 'RUB'},
-        ...     {'amount': 50, 'currency': 'USD'},
-        ...     {'amount': 200}  # Будет считаться RUB по умолчанию
-        ... ]
-        filter_rub_transactions(transactions)
-        [{'amount': 100, 'currency': 'RUB'}, {'amount': 200}]
+    Фильтрует транзакции, оставляя только рублёвые.
+    Поддерживает все форматы (CSV, JSON, XLSX).
     """
     rub_transactions = []
+    rub_aliases = {'RUB', 'РУБ', 'RUR', 'RU', '643'}  # 643 - цифровой код RUB
 
-    for transaction in transactions:
+    for tx in transactions:
         try:
-            # Получаем валюту, по умолчанию RUB
-            currency = str(transaction.get('currency', 'RUB')).upper()
+            # Проверяем все возможные места хранения валюты
+            currency = (
+                str(tx.get('operationAmount', {}).get('currency', {}).get('code', '')) or  # Для JSON
+                str(tx.get('currency_code', '')) or  # Для XLSX/CSV
+                str(tx.get('currency', '')) or  # Для старых форматов
+                'RUB'
+            ).upper().strip()
 
-            # Проверяем, что валюта рубль (допускаются варианты: RUB, руб, RUR и т.д.)
-            if currency in ('RUB', 'РУБ', 'RUR'):
-                rub_transactions.append(transaction)
-
-        except (AttributeError, TypeError) as e:
-            # Пропускаем транзакции с некорректными данными
+            if currency in rub_aliases:
+                rub_transactions.append(tx)
+        except:
             continue
 
     return rub_transactions
@@ -61,72 +47,183 @@ def safe_convert(value: Union[str, float, int]) -> float:
 
 
 def print_transaction(transaction: Dict) -> None:
-    """Универсальный вывод транзакции"""
+    """
+    Улучшенная версия вывода транзакции с полной поддержкой JSON-структуры
+    """
     try:
-        # Преобразуем все значения в строки для безопасности
-        date = str(transaction.get('date', 'Нет данных')).strip()
-        description = str(transaction.get('description', 'Без описания')).strip()
+        # Проверка на пустую транзакцию
+        if not transaction:
+            print("\nПустая транзакция")
+            return
+
+        # Обработка даты
+        raw_date = str(transaction.get('date', '')).strip()
+        date = raw_date.split('T')[0] if 'T' in raw_date else raw_date
+        date = date or 'Дата неизвестна'
+
+        # Описание операции
+        description = str(transaction.get('description', '')).strip()
+        description = description or 'Без описания'
+
         print(f"\n{date} {description}")
 
-        # Обработка from/to с защитой от ошибок
+        # Обработка отправителя/получателя (без изменений)
         for direction in ['from', 'to']:
-            if direction in transaction:
-                value = str(transaction[direction])
-                if any(word in value.lower() for word in ['карта', 'card']):
-                    parts = value.rsplit(' ', 1)
-                    masked = f"{parts[0]} {get_mask_card_number(parts[1])}" if len(parts) == 2 else value
-                else:
-                    parts = value.rsplit(' ', 1)
-                    masked = f"{parts[0]} {get_mask_account(parts[1])}" if len(parts) == 2 else value
-                print(masked, end=' -> ' if direction == 'from' else '\n')
+            if direction not in transaction:
+                continue
 
-        # Обработка суммы
-        amount = safe_convert(transaction.get('amount', 0))
-        currency = str(transaction.get('currency', 'RUB')).upper()
-        print(f"Сумма: {amount:.2f} {currency}")
+            value = str(transaction[direction]).strip()
+            if not value:
+                continue
+
+            try:
+                is_card = any(
+                    word in value.lower()
+                    for word in ['карта', 'card', 'visa', 'mastercard', 'discover', 'maestro']
+                )
+
+                parts = value.rsplit(' ', 1)
+                if len(parts) == 2:
+                    name, number = parts
+                    masked = f"{name} {get_mask_card_number(number)}" if is_card else f"{name} {get_mask_account(number)}"
+                else:
+                    masked = value
+
+                print(masked, end=' -> ' if direction == 'from' else '\n')
+            except Exception as e:
+                print(f"\nОшибка маскировки {direction}: {str(e)}")
+                print(f"Исходное значение: {value}")
+
+        # Получение суммы и валюты из JSON-структуры
+        operation_amount = transaction.get('operationAmount', {})
+
+        # Сумма может быть в operationAmount.amount или в корне транзакции
+        amount = operation_amount.get('amount', transaction.get('amount'))
+
+        # Валюта может быть в operationAmount.currency.code или в корне
+        currency = operation_amount.get('currency', {}).get('code',
+                                                            transaction.get('currency_code',
+                                                                            transaction.get('currency', 'RUB'))).upper()
+
+        # Вывод суммы
+        if amount is not None:
+            try:
+                if isinstance(amount, str):
+                    # Удаляем все нечисловые символы, кроме точки и запятой
+                    amount_clean = ''.join(c for c in amount if c.isdigit() or c in '.,')
+                    # Заменяем запятую на точку для корректного преобразования
+                    amount_clean = float(amount_clean.replace(',', '.'))
+                else:
+                    amount_clean = float(amount)
+
+                print(f"Сумма: {amount_clean:.2f} {currency}")
+            except (ValueError, TypeError):
+                print(f"Сумма: {amount} {currency} (некорректный формат)")
+        else:
+            print("Сумма: не указана")
 
     except Exception as e:
-        print(f"\nОшибка при выводе транзакции: {str(e)}")
-        print(f"Сырые данные: {transaction}")
+        print(f"\nКритическая ошибка при выводе транзакции: {str(e)}")
+        print("Сырые данные:", transaction)
+
 
 
 def load_json(filepath: str) -> List[Dict]:
-    """Загрузка JSON файла с обработкой всех форматов"""
+    """Загрузка JSON файла с улучшенной обработкой суммы"""
     with open(filepath, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    if isinstance(data, dict):
-        return [data]
-    return data
+    processed_transactions = []
+
+    # Обрабатываем как список, так и одиночную транзакцию
+    transactions = data if isinstance(data, list) else [data]
+
+    for tx in transactions:
+        # Стандартизируем структуру
+        processed = {
+            'id': str(tx.get('id', '')),
+            'state': str(tx.get('state', '')).upper(),
+            'date': str(tx.get('date', '')),
+            'description': str(tx.get('description', '')),
+            'amount': tx.get('operationAmount', {}).get('amount', '0'),
+            'currency': tx.get('operationAmount', {}).get('currency', {}).get('code', 'RUB'),
+            'from': tx.get('from', ''),
+            'to': tx.get('to', '')
+        }
+        processed_transactions.append(processed)
+
+    return processed_transactions
 
 
 def load_csv(filepath: str) -> List[Dict]:
-    """Загрузка CSV файла с правильным парсингом"""
+    """Загрузка CSV файла с конкретным форматом"""
     transactions = []
-    with open(filepath, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
+
+    with open(filepath, 'r', encoding='windows-1251') as f:
+        # Читаем файл с разделителем точка с запятой
+        reader = csv.DictReader(f, delimiter=';')
+
         for row in reader:
-            # Конвертируем все значения в строки
-            cleaned = {k: str(v).strip() for k, v in row.items()}
-            transactions.append(cleaned)
+            try:
+                # Основные поля
+                transaction = {
+                    'id': row['id'].strip(),
+                    'state': row['state'].strip().upper(),  # Приводим к верхнему регистру
+                    'date': row['date'].strip().split('T')[0],  # Берем только дату без времени
+                    'amount': float(row['amount'].replace(' ', '').replace(',', '.')),
+                    'currency': row['currency_code'].strip().upper(),  # Используем currency_code как основной
+                    'currency_name': row['currency_name'].strip(),
+                    'currency_code': row['currency_code'].strip().upper(),
+                    'from': row.get('from', '').strip(),  # Используем get() так как поле может отсутствовать
+                    'to': row['to'].strip(),
+                    'description': row['description'].strip()
+                }
+                transactions.append(transaction)
+
+            except (KeyError, ValueError) as e:
+                print(f"Ошибка обработки строки: {row}. Пропускаем. Ошибка: {str(e)}")
+                continue
+
     return transactions
 
 
 def load_xlsx(filepath: str) -> List[Dict]:
-    """Загрузка XLSX с обработкой числовых значений"""
+    """Загрузка XLSX файла с правильным извлечением валюты"""
+    import openpyxl
+    transactions = []
+
     wb = openpyxl.load_workbook(filepath)
     ws = wb.active
-    headers = [cell.value for cell in ws[1]]
 
-    transactions = []
+    # Получаем заголовки из первой строки
+    headers = [str(cell.value).lower().strip() for cell in ws[1]]
+
     for row in ws.iter_rows(min_row=2):
         transaction = {}
         for header, cell in zip(headers, row):
             value = cell.value
-            # Преобразуем числа в строки для единообразия
             transaction[header] = str(value) if value is not None else ''
-        transactions.append(transaction)
+
+        # Стандартизируем формат валюты
+        currency = (
+            transaction.get('currency_code') or
+            transaction.get('currency') or
+            'RUB'
+        ).upper()
+
+        formatted = {
+            'date': transaction.get('date', ''),
+            'description': transaction.get('description', ''),
+            'amount': transaction.get('amount', '0'),
+            'currency': currency,  # Используем нормализованную валюту
+            'currency_code': currency,  # Дублируем для совместимости
+            'from': transaction.get('from', ''),
+            'to': transaction.get('to', '')
+        }
+        transactions.append(formatted)
+
     return transactions
+
 
 
 def process_file(filepath: str) -> None:
