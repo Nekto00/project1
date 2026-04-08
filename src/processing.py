@@ -1,14 +1,29 @@
-def filter_by_state(transactions, state='EXECUTED'):
-    """Фильтрует список словарей по значению ключа 'state'.
+from typing import List, Dict
+
+
+def filter_by_state(transactions: List[Dict], state: str = 'EXECUTED') -> List[Dict]:
+    """Фильтрует транзакции по статусу с улучшенной обработкой данных.
 
     Args:
-        transactions (list): Список словарей для фильтрации.
-        state (str, optional): Желаемое значение ключа 'state'. По умолчанию 'EXECUTED'.
+        transactions: Список транзакций (из JSON/CSV/XLSX)
+        state: Желаемый статус (регистронезависимый)
 
     Returns:
-        list: Отфильтрованный список словарей.
+        Список отфильтрованных транзакций
     """
-    return [item for item in transactions if item.get('state') == state]
+    state = state.upper()  # Приводим к верхнему регистру
+    filtered = []
+
+    for transaction in transactions:
+        try:
+            # Получаем статус и приводим к верхнему регистру
+            tx_state = str(transaction.get('state', '')).strip().upper()
+            if tx_state == state:
+                filtered.append(transaction)
+        except (AttributeError, KeyError):
+            continue
+
+    return filtered
 
 
 def sort_by_date(transactions, reverse=True):

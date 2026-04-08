@@ -2,10 +2,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+import re
 
 from src.external_api import get_exchange_rate
-from src.utils import get_transaction_amount, load_transactions
-
+from src.utils import get_transaction_amount, load_transactions, process_bank_search, process_bank_operations
+from collections import defaultdict
 
 @pytest.fixture
 def sample_transactions():
@@ -112,3 +113,128 @@ class TestLoadTransactionsTryExcept:
 
         assert result == []
         assert "ERROR" in caplog.text and "Ошибка декодирования JSON" in caplog.text
+
+def test_empty_search_returns_all_data():
+    """Если строка поиска пустая, возвращается копия исходных данных."""
+    data = [
+        {"description": "Payment for groceries", "amount": 50},
+        {"description": "Salary", "amount": 1000},
+    ]
+    result = process_bank_search(data, "")
+    assert result == data  # Проверяем, что вернулась копия данных
+    assert result is not data  # Убедимся, что это именно копия, а не исходный список
+
+def test_case_insensitive_search():
+    """Поиск должен быть регистронезависимым."""
+    data = [
+        {"description": "Payment for Groceries", "amount": 50},
+        {"description": "salary deposit", "amount": 1000},
+    ]
+    result = process_bank_search(data, "groceries")
+    assert len(result) == 1
+    assert result[0]["description"] == "Payment for Groceries"
+
+def test_partial_match():
+    """Поиск должен находить частичные совпадения."""
+    data = [
+        {"description": "Netflix Subscription", "amount": 15},
+        {"description": "Spotify Premium", "amount": 10},
+    ]
+    result = process_bank_search(data, "net")
+    assert len(result) == 1
+    assert "Netflix" in result[0]["description"]
+
+def test_no_matches_returns_empty_list():
+    """Если совпадений нет, возвращается пустой список."""
+    data = [
+        {"description": "Uber Ride", "amount": 20},
+    ]
+    result = process_bank_search(data, "Taxi")
+    assert result == []
+
+def test_missing_description_field():
+    """Если у элемента нет поля 'description', он игнорируется."""
+    data = [
+        {"description": "Coffee", "amount": 5},
+        {"amount": 100},  # Нет описания
+        {"description": "Books", "amount": 30},
+    ]
+    result = process_bank_search(data, "coffee")
+    assert len(result) == 1
+    assert result[0]["description"] == "Coffee"
+
+def test_special_characters_in_search():
+    """Поиск должен корректно обрабатывать спецсимволы."""
+    data = [
+        {"description": "Payment (VIP)", "amount": 500},
+    ]
+    result = process_bank_search(data, "(VIP)")
+    assert len(result) == 1
+
+def test_basic_category_counting():
+    """Проверяет базовый подсчёт операций по категориям."""
+    data = [
+        {"description": "Coffee at Starbucks", "amount": 5},
+        {"description": "Groceries from Walmart", "amount": 50},
+        {"description": "Uber ride to work", "amount": 15},
+        {"description": "Starbucks coffee again", "amount": 6},
+    ]
+    categories = ["coffee", "groceries", "uber"]
+    result = process_bank_operations(data, categories)
+    assert result == {"coffee": 2, "groceries": 1, "uber": 1}
+
+def test_case_insensitivity():
+    """Проверяет регистронезависимость поиска категорий."""
+    data = [
+        {"description": "COFFEE at Starbucks", "amount": 5},
+        {"description": "groceries from Whole Foods", "amount": 70},
+    ]
+    categories = ["Coffee", "Groceries"]
+    result = process_bank_operations(data, categories)
+    assert result == {"Coffee": 1, "Groceries": 1}
+
+def test_missing_categories():
+    """Проверяет обработку категорий, которых нет в данных."""
+    data = [
+        {"description": "Netflix subscription", "amount": 15},
+    ]
+    categories = ["food", "transport"]
+    result = process_bank_operations(data, categories)
+    assert result == {"food": 0, "transport": 0}
+
+def test_empty_data():
+    """Проверяет работу с пустым списком операций."""
+    data = []
+    categories = ["coffee", "food"]
+    result = process_bank_operations(data, categories)
+    assert result == {"coffee": 0, "food": 0}
+
+def test_operations_without_description():
+    """Проверяет игнорирование операций без поля 'description'."""
+    data = [
+        {"description": "Restaurant bill", "amount": 30},
+        {"amount": 100},  # Нет описания
+        {"description": "Taxi ride", "amount": 20},
+    ]
+    categories = ["restaurant", "taxi"]
+    result = process_bank_operations(data, categories)
+    assert result == {"restaurant": 1, "taxi": 1}
+
+def test_partial_matches():
+    """Проверяет частичное совпадение категории в описании."""
+    data = [
+        {"description": "Monthly gym subscription", "amount": 40},
+        {"description": "Gym equipment", "amount": 200},
+    ]
+    categories = ["gym"]
+    result = process_bank_operations(data, categories)
+    assert result == {"gym": 2}
+
+def test_special_characters_in_categories():
+    """Проверяет обработку спецсимволов в категориях."""
+    data = [
+        {"description": "Payment (VIP service)", "amount": 100},
+    ]
+    categories = ["(VIP"]
+    result = process_bank_operations(data, categories)
+    assert result == {"(VIP": 1}

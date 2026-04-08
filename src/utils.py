@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -105,3 +107,53 @@ def get_transaction_amount(transaction: Dict) -> float:
         error_msg = f"Непредвиденная ошибка при обработке транзакции: {str(e)}"
         logger.error(error_msg)
         raise
+
+
+def process_bank_search(data: list[dict], search: str) -> list[dict]:
+    """
+    Фильтрует список банковских операций, оставляя только те, в описании которых встречается заданная строка.
+
+    Args:
+        data: Список словарей с данными о банковских операциях.
+        search: Строка для поиска в поле 'description' (регистронезависимый поиск).
+
+    Returns:
+        Список словарей, у которых в описании есть искомая строка.
+    """
+    if not search:
+        return data.copy()
+
+    pattern = re.compile(re.escape(search), re.IGNORECASE)
+    filtered_data = [item for item in data if 'description' in item and pattern.search(item['description'])]
+
+    return filtered_data
+
+
+def process_bank_operations(data: list[dict], categories: list[str]) -> dict[str, int]:
+    """
+    Подсчитывает количество операций для каждой указанной категории.
+
+    Args:
+        data: Список словарей с данными о банковских операциях.
+        categories: Список категорий для поиска в поле 'description' (регистронезависимый поиск).
+
+    Returns:
+        Словарь, где ключи — категории, а значения — количество операций в каждой.
+        Если категория не найдена, её значение будет 0.
+    """
+    category_counts = defaultdict(int)
+
+    # Инициализируем все категории с нулями
+    for category in categories:
+        category_counts[category] = 0
+
+    for operation in data:
+        if 'description' not in operation:
+            continue
+
+        description = operation['description'].lower()
+        for category in categories:
+            if category.lower() in description:
+                category_counts[category] += 1
+
+    return dict(category_counts)
